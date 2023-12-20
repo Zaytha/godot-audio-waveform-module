@@ -66,7 +66,7 @@ Ref<AudioStreamPreview> AudioStreamPreviewGenerator::generate_preview(const Ref<
   ERR_FAIL_COND_V(p_stream.is_null(), Ref<AudioStreamPreview>());
 
   if (previews.has(p_stream->get_instance_id())) {
-    return previews[p_stream->get_instance_id()].preview;
+	return previews[p_stream->get_instance_id()].preview;
   }
 
   //no preview exists
@@ -75,13 +75,13 @@ Ref<AudioStreamPreview> AudioStreamPreviewGenerator::generate_preview(const Ref<
 
   Preview *preview = &previews[p_stream->get_instance_id()];
   preview->base_stream = p_stream;
-  preview->playback = preview->base_stream->instance_playback();
+  preview->playback = preview->base_stream->instantiate_playback();
   preview->generating.set();
   preview->id = p_stream->get_instance_id();
 
   float len_s = preview->base_stream->get_length();
   if (len_s == 0) {
-    len_s = 60 * 5; //five minutes
+	len_s = 60 * 5; //five minutes
   }
 
   int frames = AudioServer::get_singleton()->get_mix_rate() * len_s;
@@ -90,19 +90,20 @@ Ref<AudioStreamPreview> AudioStreamPreviewGenerator::generate_preview(const Ref<
   int pw = frames / 20;
   maxmin.resize(pw * 2);
   {
-    uint8_t *ptr = maxmin.ptrw();
-    for (int i = 0; i < pw * 2; i++) {
-      ptr[i] = 127;
-    }
+	uint8_t *ptr = maxmin.ptrw();
+	for (int i = 0; i < pw * 2; i++) {
+	  ptr[i] = 127;
+	}
   }
 
-  preview->preview.instance();
+  preview->preview.instantiate();
   preview->preview->preview = maxmin;
   preview->preview->length = len_s;
 
   if (preview->playback.is_valid()) {
-    preview->thread = memnew(Thread);
-    preview->thread->start(_preview_thread, preview);
+	preview->thread = memnew(Thread);
+	preview->thread->set_name("AudioStreamPreviewGenerator");
+	preview->thread->start(_preview_thread, preview);
   }
 
   return preview->preview;
@@ -118,25 +119,27 @@ void AudioStreamPreviewGenerator::_bind_methods() {
 AudioStreamPreviewGenerator *AudioStreamPreviewGenerator::singleton = nullptr;
 
 void AudioStreamPreviewGenerator::_notification(int p_what) {
-  if (p_what == NOTIFICATION_PROCESS) {
-    List<ObjectID> to_erase;
-    for (Map<ObjectID, Preview>::Element *E = previews.front(); E; E = E->next()) {
-      if (!E->get().generating.is_set()) {
-        if (E->get().thread) {
-          E->get().thread->wait_to_finish();
-          memdelete(E->get().thread);
-          E->get().thread = nullptr;
-        }
-        if (!ObjectDB::get_instance(E->key())) { //no longer in use, get rid of preview
-          to_erase.push_back(E->key());
-        }
-      }
-    }
+  switch (p_what) {
+	case NOTIFICATION_PROCESS: {
+	  List<ObjectID> to_erase;
+	  for (KeyValue<ObjectID, Preview> &E : previews) {
+		if (!E.value.generating.is_set()) {
+			if (E.value.thread) {
+				E.value.thread->wait_to_finish();
+				memdelete(E.value.thread);
+				E.value.thread = nullptr;
+			}
+			if (!ObjectDB::get_instance(E.key)) { //no longer in use, get rid of preview
+				to_erase.push_back(E.key);
+			}
+		}
+	  }
 
-    while (to_erase.front()) {
-      previews.erase(to_erase.front()->get());
-      to_erase.pop_front();
-    }
+	  while (to_erase.front()) {
+		previews.erase(to_erase.front()->get());
+		to_erase.pop_front();
+	  }
+	} break;
   }
 }
 

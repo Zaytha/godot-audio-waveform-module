@@ -1,11 +1,18 @@
 #include "register_types.h"
 
-#include "core/class_db.h"
+#include "core/object/class_db.h"
 #include "audio_stream_preview_generator.h"
 
-void register_audio_stream_preview_generator_types() {
-  ClassDB::register_class<AudioStreamPreviewGenerator>();
+
+void initialize_audio_stream_preview_generator_module(ModuleInitializationLevel p_level) {
+    if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
+        return;
+    }
+    ClassDB::register_class<AudioStreamPreviewGenerator>();
 }
 
-void unregister_audio_stream_preview_generator_types() {
+void uninitialize_audio_stream_preview_generator_module(ModuleInitializationLevel p_level) {
+    if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
+        return;
+    }
 }
